@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPSA Designation Calculator — NP/PA FTE Equivalency Explorer</title>
+<style>
+:root { --blue: #1a5276; --green: #1e8449; --orange: #d35400; --red: #c0392b; --gray: #7f8c8d; --light: #f8f9fa; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #2c3e50; background: var(--light); padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+h1 { color: var(--blue); font-size: 1.5rem; margin-bottom: 0.3rem; }
+.subtitle { color: var(--gray); font-size: 0.9rem; margin-bottom: 1.5rem; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+.card { background: #fff; border-radius: 8px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.card h2 { font-size: 1rem; color: var(--blue); margin-bottom: 0.8rem; border-bottom: 2px solid #eee; padding-bottom: 0.4rem; }
+.input-group { margin-bottom: 1rem; }
+.input-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; }
+.input-group .hint { font-size: 0.75rem; color: var(--gray); margin-bottom: 0.3rem; }
+.slider-row { display: flex; align-items: center; gap: 0.8rem; }
+.slider-row input[type=range] { flex: 1; }
+.slider-row .val { min-width: 4rem; text-align: right; font-weight: 700; font-size: 0.95rem; }
+input[type=number] { width: 100%; padding: 0.4rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; }
+.result-box { padding: 1rem; border-radius: 6px; margin-top: 0.8rem; text-align: center; }
+.designated { background: var(--red); color: #fff; }
+.not-designated { background: var(--green); color: #fff; }
+.borderline { background: var(--orange); color: #fff; }
+.result-box .ratio { font-size: 1.8rem; font-weight: 700; }
+.result-box .label { font-size: 0.85rem; opacity: 0.9; }
+.comparison { margin-top: 1rem; }
+.comparison table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.comparison th, .comparison td { padding: 0.4rem; text-align: left; border-bottom: 1px solid #eee; }
+.comparison th { font-weight: 600; color: var(--blue); }
+.bar-container { height: 18px; background: #ecf0f1; border-radius: 9px; overflow: hidden; margin: 0.3rem 0; }
+.bar { height: 100%; border-radius: 9px; transition: width 0.3s; }
+.sources { margin-top: 1.5rem; }
+.sources h2 { font-size: 1rem; color: var(--blue); margin-bottom: 0.6rem; }
+.source-tier { margin-bottom: 0.8rem; padding: 0.6rem; background: #fff; border-radius: 6px; border-left: 4px solid var(--blue); box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.source-tier.tier1 { border-color: var(--blue); }
+.source-tier.tier2 { border-color: var(--green); }
+.source-tier.tier3 { border-color: var(--orange); }
+.source-tier h3 { font-size: 0.85rem; margin-bottom: 0.3rem; }
+.source-tier p, .source-tier li { font-size: 0.75rem; color: #555; }
+.source-tier ul { padding-left: 1.2rem; }
+.scenario-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 0.5rem; }
+.scenario-table th, .scenario-table td { padding: 0.35rem 0.5rem; border: 1px solid #ddd; text-align: center; }
+.scenario-table th { background: var(--blue); color: #fff; }
+.scenario-table .yes { background: #e8f8f0; color: var(--green); font-weight: 700; }
+.scenario-table .no { background: #fdecea; color: var(--red); font-weight: 700; }
+footer { margin-top: 2rem; font-size: 0.7rem; color: var(--gray); text-align: center; }
+</style>
+</head>
+<body>
+<h1>🏥 HPSA Designation Calculator</h1>
+<p class="subtitle">Explore how NP/PA FTE equivalency and panel size assumptions change Health Professional Shortage Area designations</p>
+
+<div class="card" style="margin-bottom:1rem; border-left:4px solid var(--blue);">
+  <h2>📖 How to Use This Tool</h2>
+  <ol style="font-size:0.82rem; padding-left:1.4rem; line-height:1.8;">
+    <li><strong>Start with a preset</strong> (green box below) or enter your own service area data on the left panel.</li>
+    <li><strong>Adjust the sliders</strong> to change assumptions — NP/PA FTE weight controls how much each NP or PA "counts" relative to a physician (0 = excluded like current law; 1.0 = fully equivalent).</li>
+    <li><strong>Read the results</strong> on the right — see side-by-side comparison of current law vs. your assumptions, including the population-to-provider ratio, HRSA severity score, and whether the area would be designated as an HPSA.</li>
+    <li><strong>Check the sensitivity tables</strong> at the bottom right — they show how designation status flips across a range of NP weights, so you can identify the "tipping point" where an area gains or loses HPSA status.</li>
+  </ol>
+  <p style="font-size:0.75rem; color:var(--gray); margin-top:0.5rem;">💡 <strong>Key question this tool answers:</strong> "If we counted NPs/PAs in the HPSA formula, how many shortage areas would remain?" Under current law (42 CFR Part 5), only physicians are counted. Wittkower et al. (2026) found that adding NPs eliminated ~80% of HPSA designations.</p>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem; border-left:4px solid var(--green);">
+  <h2 style="color:var(--green);">📄 Presets from Literature</h2>
+  <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;">
+    <button onclick="applyPreset('wittkower')" style="padding:0.4rem 0.8rem; border:1px solid var(--green); background:#e8f8f0; border-radius:4px; cursor:pointer; font-size:0.8rem;">Wittkower et al. (2026) — Conservative</button>
+    <button onclick="applyPreset('wittkower_full')" style="padding:0.4rem 0.8rem; border:1px solid var(--blue); background:#eaf2f8; border-radius:4px; cursor:pointer; font-size:0.8rem;">Wittkower et al. (2026) — Full Additive</button>
+    <button onclick="applyPreset('paragon')" style="padding:0.4rem 0.8rem; border:1px solid var(--orange); background:#fef5e7; border-radius:4px; cursor:pointer; font-size:0.8rem;">Paragon (2024) Tioga/Potter</button>
+    <button onclick="applyPreset('morgan')" style="padding:0.4rem 0.8rem; border:1px solid var(--gray); background:#f8f9fa; border-radius:4px; cursor:pointer; font-size:0.8rem;">Morgan et al. (2021) — NP+PA Productivity</button>
+  </div>
+  <p style="font-size:0.72rem; color:var(--gray); margin-top:0.5rem;">Click a preset to load its assumptions into the sliders. Wittkower et al. (MCRR, 2026): 65% FT × 80% own-panel = effective 0.66 NP FTE per headcount; found ~80% of HPSA counties lost designation at 3,000:1 threshold.</p>
+</div>
+
+<div class="grid">
+  <!-- LEFT: Inputs -->
+  <div>
+    <div class="card">
+      <h2>📍 Service Area Parameters</h2>
+      <div class="input-group">
+        <label>Population</label>
+        <div class="hint">Total civilian population in the service area</div>
+        <input type="number" id="population" value="25000" min="1000" step="1000">
+      </div>
+      <div class="input-group">
+        <label>FTE Physicians (MD/DO in primary care)</label>
+        <div class="hint">42 CFR: Only MDs/DOs in family/internal/peds/OB counted</div>
+        <input type="number" id="physicians" value="5" min="0" step="0.5">
+      </div>
+      <div class="input-group">
+        <label>NPs in Primary Care</label>
+        <input type="number" id="nps" value="4" min="0" step="1">
+      </div>
+      <div class="input-group">
+        <label>PAs in Primary Care</label>
+        <input type="number" id="pas" value="2" min="0" step="1">
+      </div>
+      <div class="input-group">
+        <label>High Needs Area?</label>
+        <div class="hint">≥20% poverty, >100 births/1000 women 15-44, or >20 infant deaths/1000</div>
+        <select id="highNeeds"><option value="0">No</option><option value="1">Yes</option></select>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1rem;">
+      <h2>⚙️ Adjustable Assumptions</h2>
+      <div class="input-group">
+        <label>NP → Physician FTE Equivalency</label>
+        <div class="hint">How much of a physician FTE does 1 NP count as?</div>
+        <div class="slider-row">
+          <input type="range" id="npWeight" min="0" max="1" step="0.05" value="0.75">
+          <span class="val" id="npWeightVal">0.75</span>
+        </div>
+      </div>
+      <div class="input-group">
+        <label>PA → Physician FTE Equivalency</label>
+        <div class="hint">PA productivity ratio relative to physicians</div>
+        <div class="slider-row">
+          <input type="range" id="paWeight" min="0" max="1" step="0.05" value="0.85">
+          <span class="val" id="paWeightVal">0.85</span>
+        </div>
+      </div>
+      <div class="input-group">
+        <label>Panel Size Threshold (patients per provider FTE)</label>
+        <div class="hint">Current 42 CFR uses 3,500:1 (no high needs) or 3,000:1 (high needs)</div>
+        <div class="slider-row">
+          <input type="range" id="threshold" min="1500" max="5000" step="100" value="3500">
+          <span class="val" id="thresholdVal">3,500</span>
+        </div>
+      </div>
+      <div class="input-group">
+        <label>High-Needs Threshold</label>
+        <div class="hint">Ratio threshold when high needs are present</div>
+        <div class="slider-row">
+          <input type="range" id="thresholdHigh" min="1500" max="5000" step="100" value="3000">
+          <span class="val" id="thresholdHighVal">3,000</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Results -->
+  <div>
+    <div class="card">
+      <h2>📊 Results</h2>
+
+      <h3 style="font-size:0.85rem; margin-top:0.5rem;">Current Law (42 CFR — Physicians Only)</h3>
+      <div class="result-box" id="resultCurrent"></div>
+
+      <h3 style="font-size:0.85rem; margin-top:1rem;">With NP/PA Counted (Your Assumptions)</h3>
+      <div class="result-box" id="resultAdjusted"></div>
+
+      <div class="comparison" id="comparison"></div>
+    </div>
+
+    <div class="card" style="margin-top:1rem;">
+      <h2>📈 Sensitivity: Designation Status Across NP Weights</h2>
+      <div id="sensitivityTable"></div>
+      <h3 style="font-size:0.8rem; margin-top:1rem; color:var(--blue);">Wittkower-Style Analysis: FT% × Panel% Scenarios</h3>
+      <div id="wittkowerTable"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Sources -->
+<div class="sources">
+  <h2>📚 Data Sources (Three-Tier Hierarchy)</h2>
+  <div class="source-tier tier1">
+    <h3>Tier 1: Government / Regulatory (42 CFR Part 5)</h3>
+    <ul>
+      <li><strong>42 CFR Appendix A to Part 5</strong> — Criteria for designation: pop/FTE physician ratio ≥3,500:1 (or ≥3,000:1 with high needs). Only MDs/DOs counted. NPs/PAs explicitly excluded.</li>
+      <li><strong>HRSA Scoring</strong> — HPSA scores 0-25; used for NHSC placement priority.</li>
+      <li><strong>HRSA Supply Modeling</strong> — 1 FTE = 40 hours/week clinical + non-clinical. Interns = 0.1 FTE; foreign grads w/o unrestricted license = 0.5 FTE.</li>
+      <li><strong>42 U.S.C. §254e</strong> — Mandates annual HPSA review.</li>
+    </ul>
+  </div>
+  <div class="source-tier tier2">
+    <h3>Tier 2: Peer-Reviewed Literature</h3>
+    <ul>
+      <li><strong>Wittkower, Bradley &amp; Plemmons (MCRR, 2026)</strong> — "Including Nurse Practitioners in the Calculation of Primary Care HPSAs." DOI: 10.1177/10775587261442035. Key findings: 238,915 validated primary care NPs from NPPES+licensure matching (Oct 2025). At 65% FT (rest 0.5 FTE) and 80% own-panel, <b>80.2%</b> of 970 HPSA counties no longer met threshold (3,000:1). At 100% additive: 85.2%. Uses HRSA severity scoring (0–5 double-weighted; max 25 total).</li>
+      <li><strong>Morgan et al. (JAAPA, 2021)</strong> — NP+PA combined productivity ratio vs physicians: 0.85 (2016) → 0.88 (2019). PAs nearly equivalent to family physicians in visits/FTE.</li>
+      <li><strong>Bae (JAANP, 2016)</strong> — NP average 80 patients/week; panel size avg 567 (vs physician ~2,000).</li>
+      <li><strong>Mayo-Smith et al. (JAMA Network Open, 2022)</strong> — Systematic review: NP-to-physician panel size ratios range 0.5 to 1.0.</li>
+      <li><strong>Martsolf et al. (JNP, 2022)</strong> — NP independent panel management determinants; lower proportion under graded independence measure.</li>
+      <li><strong>Sun et al. (JAMA Network Open, 2024)</strong> — 5 distinct FTE staffing patterns in health centers; quality varies by APRN/PA proportion.</li>
+      <li><strong>UW CHWS</strong> — PA overall physician FTE estimate: 0.83 (based on 61.4 vs 74.2 visits/week).</li>
+    </ul>
+  </div>
+  <div class="source-tier tier3">
+    <h3>Tier 3: Research Institutes / Organizations</h3>
+    <ul>
+      <li><strong>Paragon Health Institute (2024)</strong> — "Where Are Provider Shortages?" Argues HPSA methodology frozen in 1970s; ~600,000 NPs+PAs excluded. Tioga/Potter County example: adding 2 FTE NP/PA drops ratio from 4,723:1 → 2,361:1, removing HPSA status.</li>
+      <li><strong>HRSA 2008 NPRM</strong> — If NPs/PAs included, only 38% of MUA/Ps would retain designation.</li>
+      <li><strong>HRSA 2011 NRMC</strong> — Proposed including NPs/PAs; 12M people would lose HPSA coverage, 20.5M newly eligible (net +8.5M). Never adopted.</li>
+      <li><strong>GAO (1995, 2006)</strong> — Criticized failure to update HPSA/MUA lists and methodology.</li>
+      <li><strong>Graham Center (AAFP)</strong> — Maps using 1:3,500 physician-to-population ratio for HPSA visualization.</li>
+      <li><strong>AANP Workforce Survey (2024)</strong> — 65% primary care NPs full-time; 88% have own panel.</li>
+      <li><strong>HRSA NSSRN (2022 data, released 2024)</strong> — 80% of primary care NPs full-time; 80% have own panel. Part-time avg 21–23 hrs/wk.</li>
+      <li><strong>NCCPA (2025)</strong> — 189,907 PAs; 22% (~41,780) in primary care.</li>
+    </ul>
+  </div>
+
+  <div class="source-tier tier1" style="border-color: #8e44ad; margin-top:0.8rem;">
+    <h3>📊 Data Sources for Replication (Wittkower et al. 2026)</h3>
+    <ul>
+      <li><strong>HRSA HPSA Primary Care File</strong> — <a href="https://data.hrsa.gov/data/download" target="_blank">data.hrsa.gov/data/download</a></li>
+      <li><strong>NPPES NPI File (Oct 2025)</strong> — <a href="https://download.cms.gov/nppes/NPI_Files.html" target="_blank">download.cms.gov/nppes/NPI_Files.html</a></li>
+      <li><strong>NSSRN Data</strong> — <a href="https://data.hrsa.gov/topics/health-workforce/nchwa/nursing-workforce-survey-data" target="_blank">data.hrsa.gov NSSRN</a></li>
+      <li><strong>HRSA SDMS Manual</strong> — <a href="https://programportal.hrsa.gov/docs/pco/Manual-for-Policies-and-Procedures.pdf" target="_blank">Manual for Policies and Procedures</a> (scoring methodology, pp. 47)</li>
+      <li>State licensure data: individually requested from 50 state boards + D.C. (not redistributable).</li>
+    </ul>
+  </div>
+</div>
+
+<footer>
+  Academic exercise tool. Not for official designation purposes. Built June 2026.<br>
+  Primary regulatory source: 42 CFR Part 5, Appendix A (45 FR 76000, Nov. 17, 1980; as amended 54 FR 8737, 57 FR 2480).
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function applyPreset(name) {
+  const presets = {
+    wittkower: { npWeight: 0.66, paWeight: 0, threshold: 3000, thresholdHigh: 3000, population: 25000, physicians: 5, nps: 8, pas: 0, highNeeds: 0,
+      note: 'Wittkower 2026 conservative: 65% FT(1.0) + 35% PT(0.5) × 80% own-panel = 0.66 effective weight per NP headcount. 80.2% of counties lost HPSA designation.' },
+    wittkower_full: { npWeight: 0.825, paWeight: 0, threshold: 3000, thresholdHigh: 3000, population: 25000, physicians: 5, nps: 8, pas: 0, highNeeds: 0,
+      note: 'Wittkower 2026 full additive: 65% FT(1.0) + 35% PT(0.5) = 0.825 effective weight (all NPs additive to physicians). 85.2% of counties lost HPSA designation.' },
+    paragon: { npWeight: 1.0, paWeight: 1.0, threshold: 3500, thresholdHigh: 3000, population: 9446, physicians: 2, nps: 1, pas: 2, highNeeds: 0,
+      note: 'Paragon 2024: Tioga/Potter County, PA. 0.5 FTE NP + 1.5 FTE PA at weight 1.0 → ratio drops from 4,723:1 to 2,361:1.' },
+    morgan: { npWeight: 0.88, paWeight: 0.88, threshold: 3500, thresholdHigh: 3000, population: 25000, physicians: 5, nps: 4, pas: 2, highNeeds: 0,
+      note: 'Morgan et al. (JAAPA 2021): NP+PA combined productivity 0.88× physician (2019 estimate). Uses standard 42 CFR threshold.' }
+  };
+  const p = presets[name];
+  if (!p) return;
+  $('npWeight').value = p.npWeight; $('paWeight').value = p.paWeight;
+  $('threshold').value = p.threshold; $('thresholdHigh').value = p.thresholdHigh;
+  $('population').value = p.population; $('physicians').value = p.physicians;
+  $('nps').value = p.nps; $('pas').value = p.pas; $('highNeeds').value = p.highNeeds;
+  calc();
+}
+
+function calc() {
+  const pop = +$('population').value;
+  const phys = +$('physicians').value;
+  const nps = +$('nps').value;
+  const pas = +$('pas').value;
+  const highNeeds = +$('highNeeds').value;
+  const npW = +$('npWeight').value;
+  const paW = +$('paWeight').value;
+  const thresh = +$('threshold').value;
+  const threshHigh = +$('thresholdHigh').value;
+
+  // Display slider values
+  $('npWeightVal').textContent = npW.toFixed(2);
+  $('paWeightVal').textContent = paW.toFixed(2);
+  $('thresholdVal').textContent = thresh.toLocaleString();
+  $('thresholdHighVal').textContent = threshHigh.toLocaleString();
+
+  const activeThresh = highNeeds ? threshHigh : thresh;
+
+  // Current law: only physicians
+  const ratioCurrent = phys > 0 ? Math.round(pop / phys) : Infinity;
+  const isHpsaCurrent = phys === 0 || ratioCurrent >= activeThresh;
+
+  // Adjusted: include NP/PA with weights
+  const totalFTE = phys + (nps * npW) + (pas * paW);
+  const ratioAdj = totalFTE > 0 ? Math.round(pop / totalFTE) : Infinity;
+  const isHpsaAdj = totalFTE === 0 || ratioAdj >= activeThresh;
+
+  // Shortage size (number of providers needed)
+  const shortageCurrent = Math.max(0, Math.round((pop / activeThresh - phys) * 10) / 10);
+  const shortageAdj = Math.max(0, Math.round((pop / activeThresh - totalFTE) * 10) / 10);
+
+  // HRSA Severity Score (Wittkower Table 1; double-weighted in total HPSA score)
+  function getSeverityScore(r, noProviders, pop) {
+    if (noProviders && pop >= 2500) return 5;
+    if (noProviders && pop >= 2000) return 4;
+    if (noProviders && pop >= 1500) return 3;
+    if (noProviders && pop >= 1000) return 2;
+    if (noProviders && pop >= 500) return 1;
+    if (r >= 10000) return 5;
+    if (r >= 5000) return 4;
+    if (r >= 4000) return 3;
+    if (r >= 3500) return 2;
+    if (r >= 3000) return 1;
+    return 0;
+  }
+
+  const scoreCurrent = getSeverityScore(ratioCurrent, phys === 0, pop);
+  const scoreAdj = getSeverityScore(ratioAdj, totalFTE === 0, pop);
+
+  // Degree of shortage groups (from 42 CFR)
+  function getGroup(r, noProviders, hn) {
+    if (noProviders || (hn && r >= 5000)) return 1;
+    if (!hn && r >= 5000) return 2;
+    if (hn && r >= 4000) return 2;
+    if (!hn && r >= 4000) return 3;
+    if (hn && r >= 3500) return 3;
+    if (!hn && r >= 3500) return 4;
+    if (hn && r >= 3000) return 4;
+    return null;
+  }
+
+  const groupCurrent = isHpsaCurrent ? getGroup(ratioCurrent, phys === 0, highNeeds) : null;
+  const groupAdj = isHpsaAdj ? getGroup(ratioAdj, totalFTE === 0, highNeeds) : null;
+
+  // Render current
+  const ratioStr = r => r === Infinity ? '∞' : r.toLocaleString() + ':1';
+  $('resultCurrent').className = 'result-box ' + (isHpsaCurrent ? 'designated' : 'not-designated');
+  $('resultCurrent').innerHTML = `
+    <div class="ratio">${ratioStr(ratioCurrent)}</div>
+    <div class="label">${isHpsaCurrent ? '⚠️ DESIGNATED as HPSA' + (groupCurrent ? ' (Group '+groupCurrent+')' : '') : '✅ NOT a shortage area'}</div>
+    <div class="label" style="margin-top:0.3rem">HRSA Score: ${scoreCurrent}×2 = ${scoreCurrent*2}/10 points | Shortage: ${shortageCurrent} FTE needed</div>
+  `;
+
+  $('resultAdjusted').className = 'result-box ' + (isHpsaAdj ? (isHpsaCurrent ? 'designated' : 'borderline') : 'not-designated');
+  $('resultAdjusted').innerHTML = `
+    <div class="ratio">${ratioStr(ratioAdj)}</div>
+    <div class="label">${isHpsaAdj ? '⚠️ Still HPSA' + (groupAdj ? ' (Group '+groupAdj+')' : '') : '✅ No longer a shortage area'}</div>
+    <div class="label" style="margin-top:0.3rem">HRSA Score: ${scoreAdj}×2 = ${scoreAdj*2}/10 pts | FTE: ${totalFTE.toFixed(1)} | Shortage: ${shortageAdj} FTE needed</div>
+  `;
+
+  // Comparison
+  const pctChange = ratioCurrent === Infinity ? '—' : Math.round((ratioAdj - ratioCurrent) / ratioCurrent * 100) + '%';
+  $('comparison').innerHTML = `
+    <table>
+      <tr><th></th><th>Current Law</th><th>With NP/PA</th><th>Change</th></tr>
+      <tr><td>Provider FTE</td><td>${phys.toFixed(1)}</td><td>${totalFTE.toFixed(1)}</td><td>+${(totalFTE-phys).toFixed(1)}</td></tr>
+      <tr><td>Pop:Provider Ratio</td><td>${ratioStr(ratioCurrent)}</td><td>${ratioStr(ratioAdj)}</td><td>${pctChange}</td></tr>
+      <tr><td>HPSA Designated?</td><td>${isHpsaCurrent?'Yes':'No'}</td><td>${isHpsaAdj?'Yes':'No'}</td><td>${isHpsaCurrent&&!isHpsaAdj?'<b>LOST</b>':isHpsaCurrent&&isHpsaAdj?'Same':'—'}</td></tr>
+      <tr><td>Threshold Used</td><td colspan="2">${activeThresh.toLocaleString()}:1 ${highNeeds?'(high needs)':'(standard)'}</td><td></td></tr>
+    </table>
+  `;
+
+  // Sensitivity table
+  const weights = [0, 0.25, 0.5, 0.75, 0.85, 1.0];
+  let html = '<table class="scenario-table"><tr><th>NP Weight</th><th>PA Weight</th><th>Total FTE</th><th>Ratio</th><th>HPSA?</th></tr>';
+  for (const w of weights) {
+    const t = phys + nps * w + pas * Math.min(w + 0.1, 1.0);
+    const r = t > 0 ? Math.round(pop / t) : Infinity;
+    const is = t === 0 || r >= activeThresh;
+    html += `<tr><td>${w.toFixed(2)}</td><td>${Math.min(w+0.1,1).toFixed(2)}</td><td>${t.toFixed(1)}</td><td>${ratioStr(r)}</td><td class="${is?'yes':'no'}">${is?'Yes':'No'}</td></tr>`;
+  }
+  html += '</table>';
+  $('sensitivityTable').innerHTML = html;
+
+  // Wittkower-style: varying FT% and panel% assumptions for NPs
+  const ftPanelScenarios = [
+    { ft: 0.65, panel: 1.0, label: '65% FT, 100% additive' },
+    { ft: 0.65, panel: 0.80, label: '65% FT, 80% panel (conservative)' },
+    { ft: 0.80, panel: 1.0, label: '80% FT, 100% additive' },
+    { ft: 0.80, panel: 0.80, label: '80% FT, 80% panel' },
+  ];
+  let wHtml = '<table class="scenario-table"><tr><th>Scenario</th><th>Effective NP Weight</th><th>Total FTE</th><th>Ratio</th><th>Score</th><th>HPSA?</th></tr>';
+  for (const s of ftPanelScenarios) {
+    const effW = (s.ft * 1.0 + (1 - s.ft) * 0.5) * s.panel;
+    const t = phys + nps * effW + pas * paW;
+    const r = t > 0 ? Math.round(pop / t) : Infinity;
+    const is = t === 0 || r >= activeThresh;
+    const sc = getSeverityScore(r, t === 0, pop);
+    wHtml += `<tr><td style="text-align:left;font-size:0.75rem;">${s.label}</td><td>${effW.toFixed(3)}</td><td>${t.toFixed(1)}</td><td>${ratioStr(r)}</td><td>${sc}</td><td class="${is?'yes':'no'}">${is?'Yes':'No'}</td></tr>`;
+  }
+  wHtml += '</table>';
+  $('wittkowerTable').innerHTML = wHtml;
+}
+
+// Bind events
+document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', calc));
+calc();
+</script>
+</body>
+</html>
